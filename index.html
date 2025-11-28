@@ -224,11 +224,42 @@
         .offline-badge {
             position: absolute; bottom: 20px; font-size: 0.7rem; color: var(--text-sub); opacity: 0.5;
         }
+
+        /* CUSTOM MODAL STYLES (Replaces native Alert) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            z-index: 1000; display: none; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; }
+        
+        .modal-card {
+            background: var(--input-bg); border: 1px solid var(--primary);
+            padding: 2rem; border-radius: var(--radius); text-align: center;
+            max-width: 90%; width: 350px;
+            box-shadow: 0 0 40px var(--primary-glow);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+        }
+        .modal-overlay.active .modal-card { transform: scale(1); }
+        .modal-title {
+            font-family: var(--font-head); color: var(--primary); 
+            font-size: 1.5rem; margin-bottom: 10px; text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
 
 <canvas id="bgCanvas"></canvas>
+
+<!-- Custom Modal Structure -->
+<div id="customModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-title">ZapNap</div>
+        <p id="modalMessage" style="color: var(--text-main); font-size: 1rem;">Alert Message</p>
+        <button class="btn" onclick="closeModal()">OK</button>
+    </div>
+</div>
 
 <div class="app-container">
     <div class="settings-bar">
@@ -267,11 +298,13 @@
             <div class="form-group">
                 <label>Charger Output</label>
                 <select id="wattage">
-                    <option value="5">5W (Standard USB)</option>
-                    <option value="12">12W (Tablet/Old Fast)</option>
                     <option value="20" selected>20W (Modern Fast)</option>
                     <option value="30">30W (Super/Warp)</option>
                     <option value="65">65W (Laptop/Ultra)</option>
+                    <option value="100">100W (Hyper)</option>
+                    <option value="120">120W (SuperVOOC)</option>
+                    <option value="200">200W (Ultra Fast)</option>
+                    <option value="240">240W (Extreme)</option>
                 </select>
             </div>
             <div class="form-group slider-box">
@@ -424,6 +457,22 @@
     let targetTimestamp = 0; 
     let timerInterval = null; let alarmInterval = null; let audioCtx = null; let durationSeconds = 0;
 
+    // --- MODAL FUNCTIONS ---
+    function showModal(msg) {
+        document.getElementById('modalMessage').innerText = msg;
+        const modal = document.getElementById('customModal');
+        modal.style.display = 'flex';
+        // Small delay for CSS transition
+        setTimeout(() => modal.classList.add('active'), 10);
+        playSound('swish');
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('customModal');
+        modal.classList.remove('active');
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+
     function navigate(from, to) {
         playSound('swish');
         const f = document.getElementById(from); const t = document.getElementById(to);
@@ -510,7 +559,7 @@
     }
 
     function requestNotify() {
-        if (!("Notification" in window)) alert("Browser notifications not supported");
+        if (!("Notification" in window)) showModal("Browser notifications not supported");
         else Notification.requestPermission().then(permission => {
             if(permission === 'granted') { document.getElementById('permBtn').innerText = "✅ Alerts Enabled"; playSound('swish'); }
         });
@@ -525,7 +574,10 @@
     function goToCalc() {
         const current = parseInt(document.getElementById('slider').value);
         const target = 80;
-        if (current >= target) { alert("Battery is already above 80%."); return; }
+        if (current >= target) { 
+            showModal("Battery is already above 80%. Unplug to save health!"); 
+            return; 
+        }
         navigate('page-2', 'page-3');
         document.getElementById('calcLoader').style.display = 'block'; document.getElementById('calcContent').style.display = 'none';
         
