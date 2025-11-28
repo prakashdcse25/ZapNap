@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZapNap - Ultimate</title>
+    <!-- PWA Manifest (Embedded) -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"ZapNap","short_name":"ZapNap","start_url":".","display":"standalone","background_color":"#050505","theme_color":"#00ff9d","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3103/3103460.png","sizes":"192x192","type":"image/png"}]}'>
+    <meta name="theme-color" content="#050505">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME DEFINITIONS --- */
+        :root {
+            /* Default: CYBERPUNK (Neon) */
+            --bg-color: #050505;
+            --card-bg: rgba(20, 20, 25, 0.05); 
+            --text-main: #ffffff; 
+            --text-sub: #00d2ff;
+            --primary: #00ff9d;
+            --primary-glow: rgba(0, 255, 157, 0.5);
+            --danger: #ff0055;
+            --success: #00ff9d;
+            --input-bg: rgba(0, 0, 0, 0.6); 
+            --border: #00ff9d;
+            --radius: 4px;
+            --font-main: 'Rajdhani', sans-serif;
+            --font-head: 'Orbitron', sans-serif;
+            --backdrop: none; 
+        }
+
+        /* Theme: MIDNIGHT (OLED) */
+        [data-theme="midnight"] {
+            --bg-color: #000000;
+            --card-bg: rgba(0, 0, 0, 0.1);
+            --text-main: #ffffff;
+            --text-sub: #a0a0a0;
+            --primary: #2196F3;
+            --primary-glow: rgba(33, 150, 243, 0.2);
+            --danger: #ff4444;
+            --success: #00C851;
+            --input-bg: rgba(30, 30, 30, 0.8);
+            --border: #333333;
+            --radius: 16px;
+            --font-main: 'Inter', sans-serif;
+            --font-head: 'Inter', sans-serif;
+            --backdrop: none;
+        }
+
+        /* Theme: DAYLIGHT (Clean) */
+        [data-theme="light"] {
+            --bg-color: #f2f2f7;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --text-main: #000000;
+            --text-sub: #555555;
+            --primary: #007AFF;
+            --primary-glow: rgba(0, 122, 255, 0);
+            --danger: #FF3B30;
+            --success: #34C759;
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --border: #d1d1d6;
+            --radius: 20px;
+            --font-main: -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-head: -apple-system, BlinkMacSystemFont, sans-serif;
+            --backdrop: none;
+        }
+
+        /* Theme: SUNSET (Gradient) */
+        [data-theme="sunset"] {
+            --bg-color: #2d1b2e;
+            --card-bg: rgba(45, 27, 46, 0.1);
+            --text-main: #ffd1dc;
+            --text-sub: #b388eb;
+            --primary: #f72585;
+            --primary-glow: rgba(247, 37, 133, 0.4);
+            --danger: #ff9e00;
+            --success: #4cc9f0;
+            --input-bg: rgba(0,0,0,0.4);
+            --border: #7209b7;
+            --radius: 12px;
+            --font-main: 'Inter', sans-serif;
+            --font-head: 'Rajdhani', sans-serif;
+            --backdrop: none;
+        }
+
+        /* --- BASE STYLES --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; transition: background-color 0.4s, color 0.4s, border-color 0.4s, transform 0.2s; }
+        
+        ::selection { background: var(--primary); color: #000; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; padding: 0;
+            height: 100dvh;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        #bgCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 1; pointer-events: none; }
+
+        .app-container {
+            width: 100%; max-width: 450px; height: 100%; max-height: 900px;
+            position: relative;
+            background: var(--card-bg);
+            backdrop-filter: var(--backdrop); -webkit-backdrop-filter: var(--backdrop);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        @media (min-width: 500px) {
+            .app-container {
+                height: 90vh;
+                border-radius: var(--radius);
+                box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+                border: 1px solid var(--border);
+            }
+        }
+
+        .page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 2rem; display: flex; flex-direction: column;
+            align-items: center; 
+            overflow-y: auto; opacity: 0; pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            background: transparent; z-index: 2;
+        }
+        
+        .scroll-wrapper { width: 100%; margin: auto 0; display: flex; flex-direction: column; align-items: center; }
+        .page.active { opacity: 1; pointer-events: all; z-index: 10; transform: scale(1); }
+        .page.hidden { opacity: 0; transform: scale(0.92); filter: blur(4px); }
+
+        h1 { 
+            font-family: var(--font-head); font-size: 3rem; font-weight: 800; margin: 0; 
+            letter-spacing: 2px; text-transform: uppercase;
+            background: linear-gradient(135deg, var(--primary), #fff); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+            filter: drop-shadow(0 0 10px var(--primary-glow));
+        }
+        
+        h2 { font-family: var(--font-head); font-size: 1.4rem; margin-bottom: 25px; align-self: flex-start; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--primary); width: 100%; padding-bottom: 5px; }
+        p { color: var(--text-sub); text-align: center; margin-bottom: 20px; line-height: 1.6; font-size: 0.95rem; }
+
+        .settings-bar { position: absolute; top: 20px; right: 20px; z-index: 50; display: flex; gap: 10px; }
+        .theme-select {
+            background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main);
+            padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; outline: none; font-weight: 600; cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+        .theme-select option { background-color: #000; color: #fff; }
+
+        .form-group { width: 100%; margin-bottom: 20px; }
+        label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-sub); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+        select, input[type="number"] {
+            width: 100%; padding: 16px;
+            background: var(--input-bg); border: 1px solid var(--border);
+            border-radius: var(--radius); font-size: 1rem; color: var(--text-main);
+            outline: none; -webkit-appearance: none;
+            font-family: var(--font-main);
+        }
+        select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+        
+        select option { background-color: #121212; color: #fff; }
+        [data-theme="light"] select option { background-color: #fff; color: #000; }
+
+        .slider-box {
+            background: rgba(255,255,255,0.03); padding: 20px; border-radius: var(--radius);
+            border: 1px solid var(--border); text-align: center;
+        }
+        .percent-display { font-family: var(--font-head); font-size: 4rem; font-weight: 800; color: var(--primary); margin: 5px 0; text-shadow: 0 0 20px var(--primary-glow); }
+        
+        input[type="range"] {
+            width: 100%; height: 6px; background: #333;
+            border-radius: 3px; outline: none; -webkit-appearance: none; margin-top: 10px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 28px; height: 28px;
+            background: var(--bg-color); border: 2px solid var(--primary);
+            border-radius: 50%; box-shadow: 0 0 15px var(--primary-glow);
+            cursor: pointer; transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); background: var(--primary); }
+
+        .btn {
+            width: 100%; padding: 18px; border: none; border-radius: var(--radius);
+            font-size: 1.1rem; font-weight: 700; cursor: pointer;
+            transition: 0.2s; margin-top: 20px;
+            background: var(--primary); color: #000;
+            font-family: var(--font-head); text-transform: uppercase; letter-spacing: 2px;
+            box-shadow: 0 0 20px var(--primary-glow);
+            position: relative; overflow: hidden;
+        }
+        .btn::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.5s;
+        }
+        .btn:hover::after { left: 100%; }
+        .btn:active { transform: scale(0.98); }
+        .btn.secondary { background: transparent; border: 1px solid var(--text-sub); color: var(--text-sub); box-shadow: none; }
+        .btn.secondary:hover { border-color: var(--primary); color: var(--primary); }
+        .btn.stop { background: var(--danger); color: white; box-shadow: 0 0 20px rgba(255, 68, 68, 0.4); }
+
+        .timer-display { font-family: var(--font-head); font-size: 5.5rem; font-weight: 800; color: var(--text-main); line-height: 1; text-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        .progress-bar-container {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 4px; overflow: hidden; margin: 30px 0;
+        }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 1s linear; box-shadow: 0 0 10px var(--primary-glow); }
+
+        .pulse-anim { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .shake-anim { animation: shake 0.5s infinite; color: var(--danger) !important; }
+        @keyframes shake { 0% { transform: rotate(0); } 25% { transform: rotate(10deg); } 75% { transform: rotate(-10deg); } 100% { transform: rotate(0); } }
+
+        .ios-warning {
+            font-size: 0.75rem; color: var(--danger); background: rgba(255, 68, 68, 0.1);
+            padding: 8px; border-radius: 8px; margin-top: 10px; display: none; border: 1px solid var(--danger);
+        }
+        
+        .offline-badge {
+            position: absolute; bottom: 20px; font-size: 0.7rem; color: var(--text-sub); opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="app-container">
+    <div class="settings-bar">
+        <select class="theme-select" id="themeSelector" onchange="changeTheme(this.value)">
+            <option value="cyber">Cyberpunk</option>
+            <option value="midnight">Midnight</option>
+            <option value="light">Daylight</option>
+            <option value="sunset">Sunset</option>
+        </select>
+    </div>
+
+    <div id="page-1" class="page active">
+        <div class="scroll-wrapper">
+            <div style="font-size: 5rem; margin-bottom: 20px;" class="pulse-anim">⚡️</div>
+            <h1>ZapNap</h1>
+            <p style="letter-spacing: 4px; text-transform: uppercase; font-size: 0.8rem; margin-top: 5px;">Universal Battery Guard</p>
+            <div style="width: 150px; height: 2px; background: rgba(255,255,255,0.2); margin-top: 40px; border-radius: 2px; overflow: hidden;">
+                <div style="width: 100%; height: 100%; background: var(--primary); animation: load 2s ease-in-out;"></div>
+            </div>
+            <div class="offline-badge">WORKS OFFLINE</div>
+            <style>@keyframes load { from { width: 0%; } to { width: 100%; } }</style>
+        </div>
+    </div>
+
+    <div id="page-2" class="page">
+        <div class="scroll-wrapper">
+            <h2>System Config</h2>
+            <div class="form-group">
+                <label>Device Type</label>
+                <select id="deviceType" onchange="updatePresets()">
+                    <option value="phone">Smartphone (Android/iOS)</option>
+                    <option value="tablet">Tablet / iPad</option>
+                    <option value="laptop">Laptop / MacBook</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Charger Output</label>
+                <select id="wattage">
+                    <option value="5">5W (Standard USB)</option>
+                    <option value="12">12W (Tablet/Old Fast)</option>
+                    <option value="20" selected>20W (Modern Fast)</option>
+                    <option value="30">30W (Super/Warp)</option>
+                    <option value="65">65W (Laptop/Ultra)</option>
+                </select>
+            </div>
+            <div class="form-group slider-box">
+                <label>Current Battery Level</label>
+                <div class="percent-display" id="percentDisp">50%</div>
+                <input type="range" id="slider" min="1" max="99" value="50" oninput="updateSlider(this.value)">
+                <div class="ios-warning" id="iosMsg">⚠️ Apple privacy blocks auto-detect. Please slide manually.</div>
+                <div style="font-size: 0.7rem; color: var(--success); margin-top: 10px; display: none;" id="androidMsg">✓ SENSOR DETECTED & SYNCED</div>
+            </div>
+            <input type="hidden" id="capacity" value="4500">
+            <button class="btn" onclick="goToCalc()">Calculate Time</button>
+        </div>
+    </div>
+
+    <div id="page-3" class="page">
+        <div class="scroll-wrapper">
+            <div id="calcLoader" style="text-align: center;">
+                <div style="font-size: 3rem; animation: spin 1s infinite linear;">⚙️</div>
+                <p style="margin-top: 20px;">Analyzing Power Flow...</p>
+            </div>
+            <div id="calcContent" style="display: none; width: 100%; text-align: center;">
+                <p style="text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; color: var(--text-sub);">Time to Reach 80%</p>
+                <div class="timer-display" id="resultMin" style="color: var(--primary);">00</div>
+                <p style="font-weight: 800; font-size: 1.2rem; color: var(--text-main);">MINUTES</p>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: var(--radius); margin: 30px 0; border: 1px solid var(--border);">
+                    <p style="margin: 0; font-size: 0.9rem;">Charging stops at 80% to prevent heat stress.</p>
+                </div>
+                <button class="btn secondary" id="permBtn" onclick="requestNotify()" style="font-size: 0.8rem; padding: 10px; margin-top: 0;">🔔 Enable Background Alerts</button>
+                <button class="btn" onclick="startTimer()">Start Timer</button>
+                <button class="btn secondary" onclick="navigate('page-3', 'page-2')">Adjust Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-4" class="page">
+        <div class="scroll-wrapper">
+            <div style="font-size: 5rem;" id="bellIcon">🔔</div>
+            <p id="statusText" style="color: var(--success); font-weight: 700; margin-top: 10px; letter-spacing: 2px;">MONITORING</p>
+            <div class="timer-display" id="countdown">00:00</div>
+            <div class="progress-bar-container">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <p style="font-size: 0.8rem; opacity: 0.7;">Keep tab open for best accuracy</p>
+            <button id="stopBtn" class="btn stop" style="display: none;" onclick="stopAlarm()">STOP ALARM</button>
+            <button id="cancelBtn" class="btn secondary" onclick="cancelTimer()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- SERVICE WORKER (OFFLINE SUPPORT) ---
+    // We construct a Blob to create a virtual service worker file from within this single HTML
+    const swCode = `
+        const CACHE_NAME = 'zapnap-v1';
+        const urlsToCache = ['.', 'index.html'];
+        
+        self.addEventListener('install', event => {
+            event.waitUntil(
+                caches.open(CACHE_NAME)
+                    .then(cache => { return cache.addAll(urlsToCache); })
+            );
+        });
+
+        self.addEventListener('fetch', event => {
+            event.respondWith(
+                caches.match(event.request)
+                    .then(response => { return response || fetch(event.request); })
+            );
+        });
+    `;
+    
+    // Register the SW if supported
+    if ('serviceWorker' in navigator) {
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl)
+            .then(() => console.log('ZapNap SW Registered'))
+            .catch(err => console.log('SW Error:', err));
+    }
+
+    // --- CANVAS & THEME ---
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let mouse = { x: null, y: null, radius: 150 };
+
+    window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+    window.addEventListener('touchmove', (e) => { if(e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }});
+    window.addEventListener('touchstart', (e) => { if(e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }});
+    window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
+
+    function changeTheme(theme) {
+        if(theme === 'cyber') document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('zapnap_theme', theme);
+        initParticles(theme); 
+    }
+
+    function initParticles(theme) {
+        particles = [];
+        let color = 'rgba(0, 255, 157, 1)';
+        if(theme === 'midnight') color = 'rgba(200, 200, 200, 0.8)';
+        if(theme === 'light') color = 'rgba(0, 122, 255, 0.8)';
+        if(theme === 'sunset') color = 'rgba(247, 37, 133, 0.8)';
+        
+        const count = Math.min(60, (window.innerWidth * window.innerHeight) / 9000);
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 2 + 1, color: color
+            });
+        }
+    }
+
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for(let i = 0; i < particles.length; i++) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+            if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+            if(mouse.x != null) {
+                let dx = mouse.x - p.x; let dy = mouse.y - p.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < mouse.radius) {
+                    const force = (mouse.radius - distance) / mouse.radius;
+                    p.x -= (dx / distance) * force * 2; p.y -= (dy / distance) * force * 2;
+                }
+            }
+            ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            for(let j = i; j < particles.length; j++) {
+                let p2 = particles[j];
+                let dx = p.x - p2.x; let dy = p.y - p2.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < 120) {
+                    ctx.beginPath();
+                    let opacity = (1 - (distance / 120)) * 0.2;
+                    ctx.strokeStyle = p.color.replace(/[\d.]+\)$/g, `${opacity})`);
+                    ctx.lineWidth = 1; ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(animateParticles);
+    }
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(localStorage.getItem('zapnap_theme') || 'cyber'); });
+
+    // --- APP STATE ---
+    let targetTimestamp = 0; 
+    let timerInterval = null; let alarmInterval = null; let audioCtx = null; let durationSeconds = 0;
+
+    function navigate(from, to) {
+        playSound('swish');
+        const f = document.getElementById(from); const t = document.getElementById(to);
+        f.classList.remove('active'); f.classList.add('hidden');
+        setTimeout(() => { t.classList.remove('hidden'); t.classList.add('active'); f.style.display = 'none'; t.style.display = 'flex'; }, 400);
+    }
+
+    window.onload = () => {
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const savedTheme = localStorage.getItem('zapnap_theme') || 'cyber';
+        changeTheme(savedTheme);
+        document.getElementById('themeSelector').value = savedTheme;
+        animateParticles();
+
+        const ua = navigator.userAgent.toLowerCase();
+        let type = 'phone';
+        let isApple = /iphone|ipad|ipod|macintosh/.test(ua);
+        if (ua.includes('ipad') || ua.includes('tablet')) type = 'tablet';
+        else if (ua.includes('windows') || (ua.includes('macintosh') && !navigator.maxTouchPoints)) type = 'laptop';
+        document.getElementById('deviceType').value = type;
+        updatePresets();
+
+        if(isApple) document.getElementById('iosMsg').style.display = 'block';
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(batt => {
+                const level = Math.round(batt.level * 100);
+                updateSlider(level); document.getElementById('slider').value = level;
+                document.getElementById('androidMsg').style.display = 'block';
+            });
+        }
+
+        // --- CHECK PERSISTENCE ---
+        const savedTarget = localStorage.getItem('zapnap_target');
+        const savedDuration = localStorage.getItem('zapnap_duration');
+        if (savedTarget && savedDuration && parseInt(savedTarget) > Date.now()) {
+            // Restore session
+            console.log("Restoring active timer...");
+            targetTimestamp = parseInt(savedTarget);
+            durationSeconds = parseInt(savedDuration);
+            document.getElementById('page-1').style.display = 'none';
+            document.getElementById('page-2').style.display = 'none';
+            document.getElementById('page-4').classList.add('active');
+            document.getElementById('page-4').style.display = 'flex';
+            resumeTimerUI();
+        } else {
+            setTimeout(() => {
+                document.getElementById('page-1').classList.add('hidden');
+                setTimeout(() => { document.getElementById('page-1').style.display = 'none'; document.getElementById('page-2').classList.add('active'); }, 400);
+            }, 2200);
+        }
+    };
+
+    function updateSlider(val) {
+        document.getElementById('percentDisp').innerText = val + '%';
+        const color = val >= 80 ? 'var(--success)' : 'var(--primary)';
+        document.getElementById('percentDisp').style.color = color;
+    }
+
+    function updatePresets() {
+        const type = document.getElementById('deviceType').value;
+        const cap = document.getElementById('capacity');
+        if (type === 'phone') cap.value = 4500; if (type === 'tablet') cap.value = 8000; if (type === 'laptop') cap.value = 5000;
+    }
+
+    function playSound(type) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if(type === 'swish') {
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'alarm') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1); 
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+    }
+
+    function requestNotify() {
+        if (!("Notification" in window)) alert("Browser notifications not supported");
+        else Notification.requestPermission().then(permission => {
+            if(permission === 'granted') { document.getElementById('permBtn').innerText = "✅ Alerts Enabled"; playSound('swish'); }
+        });
+    }
+
+    function sendNotification() {
+        if (Notification.permission === "granted") {
+            new Notification("ZapNap: Battery Ready!", { body: "Your device has reached 80% charge. Unplug now!", icon: "https://cdn-icons-png.flaticon.com/512/3103/3103460.png" });
+        }
+    }
+
+    function goToCalc() {
+        const current = parseInt(document.getElementById('slider').value);
+        const target = 80;
+        if (current >= target) { alert("Battery is already above 80%."); return; }
+        navigate('page-2', 'page-3');
+        document.getElementById('calcLoader').style.display = 'block'; document.getElementById('calcContent').style.display = 'none';
+        
+        const capacity = parseInt(document.getElementById('capacity').value);
+        const watts = parseInt(document.getElementById('wattage').value);
+        let voltage = document.getElementById('deviceType').value === 'laptop' ? 11.5 : 4.0;
+        const percentNeeded = (target - current) / 100;
+        const whNeeded = (capacity * voltage / 1000) * percentNeeded;
+        let minutes = Math.ceil((whNeeded / (watts * 0.85)) * 60);
+        if (minutes < 1) minutes = 1;
+        durationSeconds = minutes * 60;
+
+        setTimeout(() => {
+            document.getElementById('calcLoader').style.display = 'none';
+            document.getElementById('calcContent').style.display = 'block';
+            document.getElementById('resultMin').innerText = minutes;
+            playSound('swish');
+        }, 1500);
+    }
+
+    function startTimer() {
+        playSound('swish');
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); gain.gain.value = 0.001; 
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+
+        navigate('page-3', 'page-4');
+        
+        const now = Date.now();
+        targetTimestamp = now + (durationSeconds * 1000);
+        
+        // PERSISTENCE SAVE
+        localStorage.setItem('zapnap_target', targetTimestamp);
+        localStorage.setItem('zapnap_duration', durationSeconds);
+
+        resumeTimerUI();
+    }
+
+    function resumeTimerUI() {
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('cancelBtn').style.display = 'block';
+        document.getElementById('statusText').innerText = "MONITORING...";
+        document.getElementById('statusText').style.color = "var(--success)";
+        document.getElementById('bellIcon').classList.remove('shake-anim');
+
+        // Clear any existing interval to prevent duplicates
+        if(timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(() => {
+            const currentNow = Date.now();
+            let remaining = Math.ceil((targetTimestamp - currentNow) / 1000);
+
+            if (remaining < 0) remaining = 0;
+
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            document.getElementById('countdown').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            const pct = (remaining / durationSeconds) * 100;
+            document.getElementById('progressBar').style.width = pct + '%';
+
+            if (remaining <= 0) triggerAlarm();
+        }, 1000);
+    }
+
+    function triggerAlarm() {
+        clearInterval(timerInterval);
+        document.getElementById('countdown').innerText = "00:00";
+        document.getElementById('statusText').innerText = "UNPLUG NOW!";
+        document.getElementById('statusText').style.color = "var(--danger)";
+        document.getElementById('bellIcon').classList.add('shake-anim');
+        document.getElementById('stopBtn').style.display = 'block';
+        document.getElementById('cancelBtn').style.display = 'none';
+        sendNotification();
+        playSound('alarm');
+        alarmInterval = setInterval(() => playSound('alarm'), 1000);
+        
+        // Clear Persistence so it doesn't loop on refresh
+        localStorage.removeItem('zapnap_target');
+        localStorage.removeItem('zapnap_duration');
+    }
+
+    function stopAlarm() {
+        clearInterval(alarmInterval);
+        location.reload();
+    }
+
+    function cancelTimer() {
+        clearInterval(timerInterval);
+        localStorage.removeItem('zapnap_target');
+        localStorage.removeItem('zapnap_duration');
+        navigate('page-4', 'page-2');
+    }
+</script>
+
+</body>
+</html>
